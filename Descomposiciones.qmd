@@ -24,6 +24,13 @@ medicinas |>
   autoplot(Cost)
 
 ```
+```{r}
+medicinas <- medicinas %>%
+  mutate(fecha = yearmonth(fecha)) %>%     
+  as_tsibble(index = fecha) %>%
+  arrange(fecha) %>%
+  filter(!is.na(Cost), Cost > 0)
+```
 
 
 ```{r}
@@ -46,6 +53,14 @@ medicinas_dcmp |>
   autoplot()
 ```
 
+```{r}
+medicinas_stl <- medicinas |>
+  model(stl = STL(log(Cost) ~trend(window = NULL) + season(window = "periodic"), robust = TRUE)) |>
+  components()
+
+medicinas_stl |>
+  autoplot()
+```
 
 
 
