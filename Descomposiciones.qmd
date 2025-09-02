@@ -19,15 +19,33 @@ medicinas <- medicinas |>
   as_tsibble(index = fecha)
 ```
 
+```{r}
+medicinas |> 
+  autoplot(Cost)
+
+```
+
 
 ```{r}
 #| warning: false
 
-medicinas |>
+medicinas_dcmp <- medicinas |>
   model(dcmp_clasica = classical_decomposition(Cost, type = "multiplicative")) |>
-  components() |>
+  components()
+
+medicinas_dcmp
+  
+```
+```{r}
+medicinas_dcmp |> 
+  ggplot(aes(y = Cost, x = fecha)) +
+  geom_line(color = "grey") +
+  geom_line(aes(y = season_adjust), color = "blue")
+
+medicinas_dcmp |> 
   autoplot()
 ```
+
 
 
 
