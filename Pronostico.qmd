@@ -1,0 +1,124 @@
+---
+title: "Pronostico"
+format: html
+editor: visual
+---
+
+
+```{r}
+library(tidyverse)
+library(fpp3)
+```
+
+
+
+```{r}
+gas_train <- aus_production |>
+  filter_index(. ~ "2007 Q2")
+gas_train
+```
+
+
+```{r}
+gas_train |>
+  autoplot(log(Gas))
+```
+```{r}
+gas_lambda <- gas_train |>
+  features(Gas, features = guerrero) |>
+  pull()
+gas_lambda
+```
+```{r}
+gas_train |>
+  autoplot(box_cox(Gas, lambda = gas_lambda))
+```
+
+```{r}
+gas_fit <- gas_train |> 
+  model(
+    drift = RW(box_cox(Gas, gas_lambda) ~ drift()),
+    snaive = SNAIVE(box_cox(Gas, gas_lambda)),
+  )
+
+gas_fit
+```
+
+```{r}
+gas_aug <- gas_fit |>
+  augment()
+gas_aug
+```
+
+```{r}
+gas_aug |>
+  autoplot(.innov) +
+  facet_wrap(~.model, ncol = 1, scales = "free_y")
+```
+
+```{r}
+gas_aug |>
+  ACF(.innov) |>
+  autoplot() +
+  facet_wrap(~.model, ncol = 1, scales = "free_y")
+```
+
+
+```{r}
+#| warning: false
+
+gas_aug |> 
+  ggplot(aes(x = .innov, fill = .model)) +
+  geom_histogram() +
+  facet_wrap(~.model, ncol = 1, scales = "free_y")
+```
+
+```{r}
+gas_fit |>
+  select(drift) |>
+  gg_tsresiduals()
+```
+
+
+```{r}
+gas_fc <- gas_fit |>
+  forecast(h = "3 years")
+
+gas_fc
+```
+
+```{r}
+gas_fc |>
+  autoplot(aus_production) +
+  facet_wrap(vars(.model), scale = "free_y", ncol = 1)
+```
+
+```{r}
+gas_fc |>
+  accuracy(aus_production)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
