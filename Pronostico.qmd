@@ -95,17 +95,67 @@ gas_fc |>
 
 ```{r}
 gas_fc |>
-  accuracy(aus_production)
+  accuracy(aus_production) |>
+  arrange(RMSE)
 ```
 
 
+#Pronostico con descomposicion
+
+```{r}
+gas_dcmp <- gas_train |>
+  model(
+    dcmp = decomposition_model(                                           
+      STL(box_cox(Gas, gas_lambda) ~season(window = "periodic"), robust = TRUE),
+      RW(season_adjust~ drift()),
+      SNAIVE(season_year)
+    )
+  )
+
+gas_dcmp
+```
+
+```{r}
+gas_dcmp |>
+  gg_tsresiduals()
+```
 
 
+```{r}
+gas_dcmp |>
+  augment() |>
+  features(.innov, ljung_box, lag = 8)
+```
 
 
+```{r}
+gas_dcmp_fc <-  gas_dcmp |>
+  forecast(h = "3 years")
+
+gas_dcmp_fc
+
+gas_dcmp_fc |>
+  autoplot(aus_production |> filter_index("1999 Q1" ~.))
+```
 
 
+```{r}
+gas_fc_full <- gas_fc |>
+  full_join(gas_dcmp_fc)
 
+
+gas_fc_full
+```
+
+
+```{r}
+gas_fc_full |>
+  accuracy(aus_production) |>
+  arrange(RMSE)
+
+gas_fc_full |>
+  autoplot(aus_production |> filter_index("1999 Q1"~.), level = NULL)
+```
 
 
 
