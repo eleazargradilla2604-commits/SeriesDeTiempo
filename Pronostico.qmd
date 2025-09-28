@@ -1,7 +1,8 @@
 ---
 title: "Pronostico"
-format: html
-editor: visual
+format: 
+  html:
+    embed-resources: true
 ---
 
 ```{r}
@@ -329,11 +330,74 @@ plotly::ggplotly(p)
 ```
 
 
+```{r}
+gas_fit_new <- gas_train |>
+  model(
+    hw = ETS(Gas ~ error("M") + trend("Ad", phi = 0.8) + season("M")),
+    snaive     = SNAIVE(box_cox(Gas, gas_lambda)),
+    ets_auto   = ETS(box_cox(Gas, gas_lambda)),
+    ets_damped = ETS(box_cox(Gas, gas_lambda) ~ error("A") + trend("Ad") + season("M")),
+    arima = ARIMA(box_cox(Gas, gas_lambda) ~ pdq(0,1,1) + PDQ(0,1,1)),
+  )
 
+gas_fit_new
 
+```
+```{r}
+gas_fc_new <- gas_fit_new |> 
+  mutate(
+    top2 = (snaive + hw)/2,
+    todos = (snaive + hw + ets_damped + arima + ets_auto)/5
+  ) |> 
+  forecast(h = "3 years")
 
+gas_fc_new |> 
+  accuracy(aus_production) |> 
+  arrange(MAPE)
 
+p <- gas_fc_new |> 
+  autoplot(aus_prod_recent, level = NULL)
 
+plotly::ggplotly(p)
+```
+
+Combinare El Ets ajustado con el snaive y el hw que son los dos mas cercanos, y
+el Arima con el snaive que son los mas opuestos, para ver si se encuentran en un
+punto medio
+
+```{r}
+gas_fit_new2 <- gas_train |>
+  model(
+    hw = ETS(Gas ~ error("M") + trend("Ad", phi = 0.8) + season("M")),
+    snaive     = SNAIVE(box_cox(Gas, gas_lambda)),
+    ets_damped = ETS(box_cox(Gas, gas_lambda) ~ error("A") + trend("Ad") + season("M")),
+    arima = ARIMA(box_cox(Gas, gas_lambda) ~ pdq(0,1,1) + PDQ(0,1,1)),
+  )
+
+gas_fit_new
+
+```
+
+```{r}
+gas_fc_new2 <- gas_fit_new2 |> 
+  mutate(
+    top3 = (snaive + hw + ets_damped)/3,
+    sArima = (snaive + arima)/2
+  ) |> 
+  forecast(h = "3 years")
+
+gas_fc_new2 |> 
+  accuracy(aus_production) |> 
+  arrange(RMSE)
+
+p <- gas_fc_new2 |> 
+  autoplot(aus_prod_recent, level = NULL)
+
+plotly::ggplotly(p)
+```
+
+De todos los modelos que he trabajado, el sArima es el que tiene un MAPE mas 
+pequeño, de tan solo 1.74
 
 
 
