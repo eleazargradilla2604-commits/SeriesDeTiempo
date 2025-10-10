@@ -1,0 +1,197 @@
+---
+title: "modelos ETS"
+format: 
+  html:
+    embed-resources: true
+---
+
+```{r}
+#| message: false
+
+library(tidyverse)
+library(fpp3)
+library(tidyquant) 
+```
+
+```{r}
+h_beer <- 8  # 2 años trimestrales
+beer_df <- aus_production |>
+  select(Quarter, Beer) |>
+  drop_na()
+```
+
+```{r}
+beer_train <- beer_df |> slice_head(n = nrow(beer_df) - h_beer)
+beer_test  <- beer_df |> slice_tail(n = h_beer)
+```
+
+```{r}
+beer_baseline_mdl <- beer_train |>
+  model(
+    mean   = MEAN(Beer),
+    naive  = NAIVE(Beer),
+    snaive = SNAIVE(Beer),
+    drift  = RW(Beer ~ drift())
+  )
+
+beer_baseline_fc <- beer_baseline_mdl |> forecast(h = h_beer)
+```
+
+```{r}
+beer_baseline_fc |>
+  accuracy(beer_test) |>
+  arrange(RMSE)
+
+beer_baseline_fc |>
+  autoplot(beer_df |> filter_index("2008-01-01"~.), level = NULL)
+
+```
+```{r}
+lambda_beer <- beer_train |>
+  features(Beer, features = guerrero) |>
+  pull(lambda_guerrero)
+```
+
+
+
+```{r}
+beer_ets_mdl <- beer_train |>
+  model(
+    ets_auto      = ETS(box_cox(Beer, lambda_beer)),                                              # automático
+    ets_AAA       = ETS(box_cox(Beer, lambda_beer) ~ error("A") + trend("A") + season("A")),      # AAA
+    ets_MAM       = ETS(box_cox(Beer, lambda_beer) ~ error("M") + trend("A") + season("M")),      # MAM
+    ets_AdM       = ETS(box_cox(Beer, lambda_beer) ~ error("A") + trend("Ad") + season("M")),     # tendencia amortiguada
+    ets_boxcox    = ETS(box_cox(Beer, lambda_beer))                          # Box–Cox + ETS(auto)
+  )
+```
+
+
+```{r}
+beer_ets_fc <- beer_ets_mdl |> forecast(h = h_beer)
+```
+
+
+```{r}
+beer_ets_fc |>
+  accuracy(beer_test) |>
+  arrange(RMSE)
+
+beer_ets_fc |>
+  autoplot(beer_df |> filter_index("2008-01-01"~.), level = NULL)
+```
+
+En este caso el mejor tanto por RMSE tanto por grafica, es el ets_AdM
+
+
+
+
+
+
+
+
+
+
+```{r}
+h_gdp <- 10  # 10 años
+gdp_mx <- global_economy |>
+  filter(Country == "Mexico") |>
+  select(Year, GDP) |>
+  drop_na()
+```
+
+
+
+```{r}
+gdp_train <- gdp_mx |> slice_head(n = nrow(gdp_mx) - h_gdp)
+gdp_test  <- gdp_mx |> slice_tail(n = h_gdp)
+```
+
+```{r}
+gdp_baseline_mdl <- gdp_train |>
+  model(
+    mean  = MEAN(GDP),
+    naive = NAIVE(GDP),
+    drift = RW(GDP ~ drift())
+  )
+
+gdp_baseline_fc <- gdp_baseline_mdl |> forecast(h = h_gdp)
+```
+
+
+```{r}
+gdp_baseline_fc |>
+  accuracy(gdp_test) |>
+  arrange(RMSE)
+
+gdp_baseline_fc |>
+  autoplot(gdp_mx |> filter_index("2008"~.), level = NULL)
+```
+
+```{r}
+#lambda_gdp <- gdp_train |>
+  #features(GDP, features = guerrero) |>
+  #pull(lambda_guerrero)
+
+lambda_gdp <- -0.2580379
+```
+
+
+```{r}
+gdp_ets_mdl <- gdp_train |>
+  model(
+    ets_auto   = ETS(GDP),
+    ets_ANN    = ETS(GDP~ error("A") + trend("N") + season("N")),   # nivel
+    ets_AAN    = ETS(GDP~ error("A") + trend("A") + season("N")),   # Holt
+    ets_AdN    = ETS(GDP~ error("A") + trend("Ad") + season("N")),  # Holt amortiguado
+
+  )
+gdp_ets_mdl
+```
+
+
+```{r}
+gdp_ets_fc <- gdp_ets_mdl |> forecast(h = h_gdp)
+```
+
+
+```{r}
+gdp_ets_fc |>
+  accuracy(gdp_test) |>
+  arrange(RMSE)
+
+gdp_ets_fc |>
+  autoplot(gdp_mx |> filter_index("2008"~.), level = NULL)
+```
+Estoy seguro de que en este hice algo mal, pero aun no identifico que fue
+En este caso mi mejor modelo fue el drift
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
